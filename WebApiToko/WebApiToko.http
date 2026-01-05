@@ -1,4 +1,4 @@
-@WebApiToko_HostAddress = http://localhost:5134
+@WebApiToko_HostAddress = http://localhost:5256
 
 GET {{WebApiToko_HostAddress}}/weatherforecast/
 Accept: application/json
