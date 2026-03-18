@@ -1,14 +1,15 @@
-﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Diagnostics;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Versioning;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using Swashbuckle.AspNetCore.Swagger;
-using Swashbuckle.AspNetCore.SwaggerGen;
+using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
+using System.Text;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using WebApiToko.Data;
@@ -47,23 +48,75 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 
 #endregion
 
+#region JWT Conf
+//Jwt config
+var key = Encoding.ASCII.GetBytes(builder.Configuration["JWT:Secret"]);
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidIssuer = builder.Configuration["JWT:ValidIssuer"],
+        ValidAudience = builder.Configuration["JWT:ValidAudience"],
+        ClockSkew = TimeSpan.Zero
+    };
+
+    // Jika Anda ingin tambahkan event (misal: cek revoked token), aktifkan ini:
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async ctx =>
+        {
+            var jti = ctx.SecurityToken is JwtSecurityToken jwtToken
+            ? jwtToken.Id
+            : ctx.SecurityToken?.Id ?? ctx.Principal?.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+
+            if (string.IsNullOrEmpty(jti))
+            {
+                ctx.Fail("Invalid token: missing 'jti' claim.");
+                return;
+            }
+
+            // 2. Cek apakah token sudah direvoke di database
+            var userRepository = ctx.HttpContext.RequestServices.GetRequiredService<IUserRepository>();
+            var isRevoked = await userRepository.IsTokenRevokedAsync(jti);
+
+            if (isRevoked)
+            {
+                ctx.Fail("Token has been revoked.");
+            }
+        }
+    };
+});
+builder.Services.AddAuthorization();
+#endregion
+
+#region regist controller
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     });
+#endregion
 
-#region Konfigurasi Swagger
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-
-// Add services to the container.
-builder.Services.AddScoped<IUserRepository  , UserRepository>();
+#region Regist service and repo
+// Add services and repo to the container.
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 
+//Global Exception Handler
 builder.Services.AddExceptionHandler<GlobalException>();
+#endregion
 
+#region Konfigurasi Swagger
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -121,10 +174,10 @@ builder.Services.AddApiVersioning(options =>
 
 #endregion
 
-builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 //builder.Services.AddOpenApi();
 
+#region App
 var app = builder.Build();
 
 app.MapGet("/healthcheck", () => Results.Ok(new
@@ -162,6 +215,9 @@ app.UseSwaggerUI(c =>
 //    app.MapControllers();
 //}
 
+app.UseCors();
+
 app.MapControllers();
 
 app.Run();
+#endregion

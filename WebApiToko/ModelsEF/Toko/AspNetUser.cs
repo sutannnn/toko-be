@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 namespace WebApiToko.ModelsEF.Toko;
 
 [Index("NormalizedEmail", Name = "EmailIndex")]
+[Index("Email", Name = "IDX_AspNetUsers_Email")]
+[Index("UserName", Name = "UK_AspNetUsers_UserName", IsUnique = true)]
 public partial class AspNetUser
 {
     [Key]
@@ -52,6 +54,12 @@ public partial class AspNetUser
 
     [InverseProperty("User")]
     public virtual ICollection<AspNetUserToken> AspNetUserTokens { get; set; } = new List<AspNetUserToken>();
+
+    [InverseProperty("User")]
+    public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+
+    [InverseProperty("User")]
+    public virtual ICollection<UserProfile> UserProfiles { get; set; } = new List<UserProfile>();
 
     [ForeignKey("UserId")]
     [InverseProperty("Users")]
