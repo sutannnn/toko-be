@@ -11,6 +11,7 @@ namespace WebApiToko.Controllers
         [Authorize]
         public IActionResult Index()
         {
+            // commit 1
             return Ok("Success");
         }
     }
