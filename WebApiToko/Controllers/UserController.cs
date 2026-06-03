@@ -21,6 +21,7 @@ namespace WebApiToko.Controllers
         [HttpPost("Register")]
         public async Task<IActionResult> Register([FromBody] UserRegisterDto model)
         {
+            // commit 2
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
