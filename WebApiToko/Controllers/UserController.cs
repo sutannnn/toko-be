@@ -21,6 +21,7 @@ namespace WebApiToko.Controllers
         [HttpPost("Register")]
         public async Task<IActionResult> Register([FromBody] UserRegisterDto model)
         {
+            // commit 2
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
@@ -37,6 +38,7 @@ namespace WebApiToko.Controllers
             }
 
             return BadRequest(result);
+            // commit 4
         }
         [HttpPost("Login")]
         public async Task<IActionResult> Login([FromBody] UserLoginDto model )
